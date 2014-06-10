@@ -6,10 +6,10 @@ import sys
 if len(sys.argv) == 2:
     ratio = float(sys.argv[1])
 else:
-    ratio = 0.99
+    ratio = 0.25
 
 #conservatively estimate profit with 1% total fees (usually less)
-fee_ratio = 0.01
+fee_ratio = 0.0025
 
 simpleArb       = []
 ltcMarkets      = []

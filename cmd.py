@@ -2,20 +2,23 @@
 import fetcher
 import operator
 import sys
+import time
 
 if len(sys.argv) == 2:
     ratio = float(sys.argv[1])
 else:
-    ratio = 0.25
+    ratio = 0.3
 
 #conservatively estimate profit with 1% total fees (usually less)
-fee_ratio = 0.0025
+fee_ratio = 0.0
 
 simpleArb       = []
 ltcMarkets      = []
 btcMarkets      = []
 doubleMarkets   = []
 outBuff         = {}
+sellorders      = {}
+buyorders       = {}
 
 #helper function to format floats
 def ff(f):
@@ -56,6 +59,7 @@ try:
     balances = fetcher.getBalances()
     btc_balance = float(balances['BTC'])
     ltc_balance = float(balances['LTC'])
+
 except:
     sys.exit("ERROR: Could not fetch balances.")
 
@@ -79,6 +83,7 @@ for lmkt in ltcMarkets:
                 btc_lo_sell     = float(bmkt['lo_sell'])
                 ltc_hi_buy_btc  = ltc_hi_buy * ltc_price
                 ltc_lo_sell_btc = ltc_lo_sell * ltc_price
+ #               orders          = marketorders['marketid']
 
                 print("Comparing buy price of " + ff(ltc_lo_sell) + " LTC to sell price of " + ff(btc_hi_buy) + " BTC")
                 if btc_hi_buy > ltc_lo_sell_btc:
@@ -96,7 +101,8 @@ for lmkt in ltcMarkets:
                         'num_purchasable'   : num_purchasable,
                         'buy_marketid'      : ltc_marketid,
                         'sell_marketid'     : btc_marketid,
-                        'price'             : ff(ltc_lo_sell)
+                        'price buy'         : ff(ltc_lo_sell),
+                        'price sell'        : ff(btc_hi_buy)
                     }
 
                 print("Comparing buy price of " + ff(btc_lo_sell) + " BTC to sell price of " + ff(ltc_hi_buy) + " LTC")
@@ -106,8 +112,10 @@ for lmkt in ltcMarkets:
                     total_fees      = (num_purchasable * btc_lo_sell) * fee_ratio
                     total_profit    = ((ltc_hi_buy_btc - btc_lo_sell) * num_purchasable) - total_fees
                     print("Calculated total profit: " + ff(total_profit))
+                    # buy
                     outstr          = "buy\t" + ff(num_purchasable) + "\t" + sn
                     outstr         += "\t@\t" + ff(btc_lo_sell) + " BTC"
+                    #sell
                     outstr         += "\tsell\t@\t" + ff(ltc_hi_buy) + " LTC"
                     outstr         += "\t(" + ff(total_profit) + " BTC profit)? (y/n): "
                     outBuff[total_profit] = {
@@ -115,7 +123,8 @@ for lmkt in ltcMarkets:
                         'num_purchasable'   : num_purchasable,
                         'buy_marketid'      : btc_marketid,
                         'sell_marketid'     : ltc_marketid,
-                        'price'             : ff(btc_lo_sell)
+                        'price buy'         : ff(btc_lo_sell),
+                        'price sell'        : ff(ltc_hi_buy)
                     }
 
                 print("-----------")
@@ -129,11 +138,17 @@ for (total_profit, data) in sorted_data:
     if data['num_purchasable'] > 0 and total_profit > 0:
         place_order =  raw_input(data['outstr'])
         if place_order == 'y':
-            r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price'])
+            r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price buy'])
             print(str(r))
             #buyorder = marketorders('buy_marketid')
             time.sleep(5)
             s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])                   
             print(str(s))
 
+            #rebalancing ltc btc balance
+           # if  ltc_balance * ltc_price > btc_balance:
+            #    ltcqtysell = (ltc_balance * ltc_price) % (btc_balance / ltc_price)
+             #   b = fetcher.placeOrder(ltc_marketid, 'Sell', ltcqtysell, ltc_price)
+              #  print(str(b))
+    
 print "Done."

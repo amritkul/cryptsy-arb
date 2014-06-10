@@ -131,5 +131,9 @@ for (total_profit, data) in sorted_data:
         if place_order == 'y':
             r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price'])
             print(str(r))
+            #buyorder = marketorders('buy_marketid')
+            time.sleep(5)
+            s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])                   
+            print(str(s))
 
 print "Done."

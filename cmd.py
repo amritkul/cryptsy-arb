@@ -3,6 +3,8 @@ import fetcher
 import operator
 import sys
 import time
+import Cryptsy
+
 
 if len(sys.argv) == 2:
     ratio = float(sys.argv[1])
@@ -10,15 +12,16 @@ else:
     ratio = 0.3
 
 #conservatively estimate profit with 1% total fees (usually less)
-fee_ratio = 0.0
+fee_ratio = 0.0025
 
 simpleArb       = []
 ltcMarkets      = []
 btcMarkets      = []
 doubleMarkets   = []
 outBuff         = {}
-sellorders      = {}
-buyorders       = {}
+Orders          = {}
+runx            = 3
+
 
 #helper function to format floats
 def ff(f):
@@ -29,6 +32,7 @@ try:
     fetcher.fetchMarketData()
 except:
     sys.exit("ERROR: Could not fetch market data.")
+
 
 print "Processing market data."
 for marketName in fetcher.marketData['return']['markets']:
@@ -56,12 +60,30 @@ except:
 
 try:
     print "Fetching balances."
-    balances = fetcher.getBalances()
+    balances = fetcher.getAvailBalances()
+ #   onhold = balances['balances_hold']
+
+   # if fetcher.marketData['return']['markets'][marketName]['secondarycode'] == 'LTC':
+#            ltcMarkets.append({'market': marketName, 'hi_buy': hi_buy, 'lo_sell': lo_sell, 'sn': sn, 'marketid': marketid})
+    #array of balances
     btc_balance = float(balances['BTC'])
     ltc_balance = float(balances['LTC'])
+ #   ltc_hold    = float(onhold['LTC'])
+#    btc_hold    = float(onhold['BTC'])
+        #rebalancing ltc btc balance
+    try:
+        if  (ltc_balance) > (btc_balance/ltc_price):
+            ltcqtysell = (ltc_balance % (btc_balance / ltc_price))
+            c = fetcher.placeOrder(3, 'Sell', ltcqtysell, (ltc_price))
+            print (str(c))
+
+    except:
+        print("Error: could not balance ltc btc holdings")
+    
 
 except:
-    sys.exit("ERROR: Could not fetch balances.")
+    print("ERROR: Could not fetch balances.")
+    pass 
 
 #check for simple arb opps
 for mkt in simpleArb:
@@ -83,6 +105,7 @@ for lmkt in ltcMarkets:
                 btc_lo_sell     = float(bmkt['lo_sell'])
                 ltc_hi_buy_btc  = ltc_hi_buy * ltc_price
                 ltc_lo_sell_btc = ltc_lo_sell * ltc_price
+ #               marketdepth     = depth('marketid')
  #               orders          = marketorders['marketid']
 
                 print("Comparing buy price of " + ff(ltc_lo_sell) + " LTC to sell price of " + ff(btc_hi_buy) + " BTC")
@@ -134,21 +157,86 @@ for lmkt in ltcMarkets:
 
 sorted_data = sorted(outBuff.iteritems(), key=operator.itemgetter(0), reverse=True)
 
-for (total_profit, data) in sorted_data:
-    if data['num_purchasable'] > 0 and total_profit > 0:
-        place_order =  raw_input(data['outstr'])
-        if place_order == 'y':
-            r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price buy'])
-            print(str(r))
-            #buyorder = marketorders('buy_marketid')
-            time.sleep(5)
-            s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])                   
-            print(str(s))
 
-            #rebalancing ltc btc balance
-           # if  ltc_balance * ltc_price > btc_balance:
-            #    ltcqtysell = (ltc_balance * ltc_price) % (btc_balance / ltc_price)
-             #   b = fetcher.placeOrder(ltc_marketid, 'Sell', ltcqtysell, ltc_price)
-              #  print(str(b))
-    
+for (total_profit, data) in sorted_data:
+    if data['num_purchasable'] > 0 and total_profit > 0.00000001:
+        #currently open buy orders
+        buy_market = fetcher.getOrders(data['buy_marketid'])
+        #currently open sell orders
+        sell_market = fetcher.getOrders(data['sell_marketid'])
+        for elem in buy_market:
+            print elem 
+        for elem in sell_market:
+            print elem 
+        #kill current buy orders for this market
+        try:
+            if len(b) > 1:          
+                for x in buy_market:
+                    cancel = fetcher.cancelOrder
+                    terminate = cancel(['orderid'])
+                    print (str(terminate))
+        except:
+            print "No Orders Canceled"
+            
+        if len(sell_market) < 2 :
+            place_order =  raw_input(data['outstr'])
+            if place_order == 'y':                 
+                r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price buy'])
+                print(str(r))
+        
+                time.sleep(3)
+                s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])
+                string = str(s)
+                print(string)
+
+                while (s['success']==("0")):
+                    time.sleep(3)
+                    s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])
+                    print(str(s))
+                    
 print "Done."
+
+while True:
+    execfile("cmd.py")
+    
+
+
+
+
+"""orderid   =  allmyOrders.orderid
+marketid  =  allmyOrders[2]
+#created   =  myOrders['created']
+ordertype =  allmyOrders[4]
+#quantity  =  myOrders['quantity']
+
+
+for (orderid) in myOrders():
+    if ordertype == 'Buy'& quantity > 0:
+        c = fetcher.cancelOrder('orderid')
+
+""""""
+"""
+
+
+
+
+
+
+
+""" 
+           
+            for ordertype
+                c = fetcher.cancelAllOrders()
+            print("Positions Terminated")
+
+                
+            #buyorder = marketorders('buy_marketid')
+            #time.sleep(5)"""
+    
+        
+"""try:
+    if runx > 0:
+        runx = runx - 1
+        execfile("cmd.py")"""
+
+

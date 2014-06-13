@@ -9,7 +9,7 @@ import Cryptsy
 if len(sys.argv) == 2:
     ratio = float(sys.argv[1])
 else:
-    ratio = 0.3
+    ratio = 0.
 
 #conservatively estimate profit with 1% total fees (usually less)
 fee_ratio = 0.0025
@@ -56,7 +56,8 @@ try:
     ltc_price = float(fetcher.getLTCPrice())
     print("LTC Price: " + format(ltc_price, '.8f')) 
 except:
-    sys.exit("ERROR: Could not fetch LTC price.")
+    print("ERROR: Could not fetch LTC price.")
+    pass
 
 try:
     print "Fetching balances."
@@ -73,9 +74,10 @@ try:
         #rebalancing ltc btc balance
     try:
         if  (ltc_balance) > (btc_balance/ltc_price):
-            ltcqtysell = (ltc_balance % (btc_balance / ltc_price))
-            c = fetcher.placeOrder(3, 'Sell', ltcqtysell, (ltc_price))
-            print (str(c))
+            ltcqtysell = (ltc_balance - (btc_balance / ltc_price))/2
+            if (ltcqtysell) > (0.3):
+                c = fetcher.placeOrder(3, 'Sell', ltcqtysell, (ltc_price))
+                print (str(c))
 
     except:
         print("Error: could not balance ltc btc holdings")
@@ -159,40 +161,46 @@ sorted_data = sorted(outBuff.iteritems(), key=operator.itemgetter(0), reverse=Tr
 
 
 for (total_profit, data) in sorted_data:
-    if data['num_purchasable'] > 0 and total_profit > 0.00000001:
-        #currently open buy orders
-        buy_market = fetcher.getOrders(data['buy_marketid'])
-        #currently open sell orders
-        sell_market = fetcher.getOrders(data['sell_marketid'])
+    #currently open buy orders
+    buy_market = fetcher.getOrders(data['buy_marketid'])
+    #currently open sell orders
+    sell_market = fetcher.getOrders(data['sell_marketid'])
+    ltc = fetcher.getOrders(3)
+    if data['num_purchasable'] > 0 and total_profit > 0.0000001:
         for elem in buy_market:
             print elem 
         for elem in sell_market:
             print elem 
         #kill current buy orders for this market
+            # todo: kill buy multiple buy/sell orders that are still open regardless of loop
         try:
-            if len(b) > 1:          
-                for x in buy_market:
-                    cancel = fetcher.cancelOrder
-                    terminate = cancel(['orderid'])
-                    print (str(terminate))
+            if len(buy_market) > 2:          
+                for elem in buy_market:
+                    cancel = fetcher.cancelOrder(data[buy_market['orderid']])
+                    print (str(cancel))
+            if len(ltc) > 4:
+                cancel = fetcher.cancelMarketOrders(3)
+                print (str(cancel))
         except:
             print "No Orders Canceled"
-            
-        if len(sell_market) < 2 :
-            place_order =  raw_input(data['outstr'])
-            if place_order == 'y':                 
-                r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price buy'])
-                print(str(r))
-        
+    if len(sell_market) < 4:
+        r = fetcher.placeOrder(data['buy_marketid'], 'Buy', data['num_purchasable'], data['price buy'])
+        print(str(r))
+
+        time.sleep(3)
+        s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])
+        string = str(s)
+        print(string)
+        if(s['success']==("0")):
+            for x in range (3):
                 time.sleep(3)
                 s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])
-                string = str(s)
-                print(string)
+                print(str(s))
+            cancel = fetcher.cancelOrder(r['orderid'])
+            print (str(cancel))
+        
 
-                while (s['success']==("0")):
-                    time.sleep(3)
-                    s = fetcher.placeOrder(data['sell_marketid'], 'Sell', data['num_purchasable'], data['price sell'])
-                    print(str(s))
+                    
                     
 print "Done."
 
